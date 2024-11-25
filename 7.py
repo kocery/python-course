@@ -1,27 +1,57 @@
 import functools
+import warnings
+from typing import Optional, Callable, Any, Union
 
 
-def deprecated(since=None, will_be_removed=None):
-    def decorator(func):
+def deprecated(
+        func: Optional[Callable] = None,
+        *,
+        since: Optional[str] = None,
+        will_be_removed: Optional[str] = None
+) -> Union[Callable, Callable[[Callable], Callable]]:
+    """
+    Декоратор для пометки функции как устаревшей.
+
+    Можно использовать как с аргументами:
+        @deprecated(since="1.0", will_be_removed="2.0")
+        def func(...):
+            ...
+
+    Так и без аргументов:
+        @deprecated
+        def func(...):
+            ...
+    """
+
+    def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            if since and will_be_removed:
-                print(
-                    f"Warning: function {func.__name__} is deprecated since version {since}. It will be removed in version {will_be_removed}")
-            elif since:
-                print(
-                    f"Warning: function {func.__name__} is deprecated since version {since}. It will be removed in future versions")
-            elif will_be_removed:
-                print(
-                    f"Warning: function {func.__name__} is deprecated. It will be removed in version {will_be_removed}")
+        def wrapper(*args, **kwargs) -> Any:
+            message = f"Warning: function {func.__name__} is deprecated"
+            if since:
+                message += f" since version {since}."
             else:
-                print(f"Warning: function {func.__name__} is deprecated and may be removed in future versions")
+                message += "."
+
+            if will_be_removed:
+                message += f" It will be removed in version {will_be_removed}."
+            else:
+                message += " It may be removed in future versions."
+
+            # Используем warnings.warn вместо print для лучшей интеграции с системой предупреждений Python
+            warnings.warn(message, DeprecationWarning, stacklevel=2)
             return func(*args, **kwargs)
 
         return wrapper
 
-    return decorator
+    if func is not None and callable(func):
+        # Декоратор используется без аргументов
+        return decorator(func)
+    else:
+        # Декоратор используется с аргументами
+        return decorator
 
+
+# Примеры использования
 
 @deprecated(since="1.0", will_be_removed="2.0")
 def old_function():
@@ -38,12 +68,20 @@ def oldest_function():
     print("This function is the oldest.")
 
 
-@deprecated()
+@deprecated
 def legacy_function():
     print("Legacy function with no specified version.")
 
 
-old_function()
-older_function()
-oldest_function()
-legacy_function()
+@deprecated
+def baz(x, y):
+    return x * y
+
+
+if __name__ == "__main__":
+    old_function()
+    older_function()
+    oldest_function()
+    legacy_function()
+    result = baz(3, 4)
+    print(f"Result of baz(3, 4): {result}")
